@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Clear loading message
       activitiesList.innerHTML = "";
+      activitySelect.innerHTML = '<option value="">-- Select an activity --</option>';
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
@@ -24,8 +25,47 @@ document.addEventListener("DOMContentLoaded", () => {
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <p class="availability"><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <div class="participants-section">
+            <h5>Participants</h5>
+            <ul class="participants-list"></ul>
+          </div>
         `;
+
+        const participantsList = activityCard.querySelector(".participants-list");
+        details.participants.forEach((email) => {
+          const participantItem = document.createElement("li");
+          const participantEmail = document.createElement("span");
+          participantEmail.textContent = email;
+
+          const deleteButton = document.createElement("button");
+          deleteButton.type = "button";
+          deleteButton.className = "delete-participant-button";
+          deleteButton.setAttribute("aria-label", `Unregister ${email}`);
+          deleteButton.title = "Unregister participant";
+          deleteButton.textContent = "\u{1F5D1}";
+          deleteButton.addEventListener("click", async () => {
+            deleteButton.disabled = true;
+            const response = await fetch(
+              `/activities/${encodeURIComponent(name)}/participants/${encodeURIComponent(email)}`,
+              { method: "DELETE" }
+            );
+
+            if (response.ok) {
+              details.participants.splice(details.participants.indexOf(email), 1);
+              participantItem.remove();
+              const availability = activityCard.querySelector(".availability");
+              const updatedSpots = details.max_participants - details.participants.length;
+              availability.innerHTML = `<strong>Availability:</strong> ${updatedSpots} spots left`;
+            } else {
+              deleteButton.disabled = false;
+            }
+          });
+
+          participantItem.appendChild(participantEmail);
+          participantItem.appendChild(deleteButton);
+          participantsList.appendChild(participantItem);
+        });
 
         activitiesList.appendChild(activityCard);
 
@@ -62,6 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        await fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
